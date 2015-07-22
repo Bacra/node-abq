@@ -9,7 +9,7 @@ var concat	= Array.prototype.concat;
 
 exports = module.exports = main;
 exports.defaults = {
-	logfile			: null,
+	file			: null,
 	flag			: 'w+',
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候
@@ -29,7 +29,7 @@ function QPD(opts) {
 	}
 
 	// 声明一下会用到的成员变量
-	this.fd = this.logfile = this.oldfd = null;
+	this.fd = this.file = this.oldfd = null;
 	this._writing = this._fding = false;
 }
 
@@ -63,8 +63,8 @@ QPD.prototype = {
 				waitQuery.splice(0, splitLen/*, '========== logfd:empty msg query <len:'+splitLen+'> =========='*/);
 				debug('logfd: empty msg query %d', splitLen);
 			}
-		} else if (opts.logfile) {
-			self.genfd(opts.logfile);
+		} else if (opts.file) {
+			self.genfd(opts.file);
 		}
 	},
 	write: function() {
@@ -89,7 +89,7 @@ QPD.prototype = {
 			self._writing = false;
 			if (err) {
 				retry || (retry = 0);
-				debug('write err file:%s retry:%d err: %o', self.logfile, retry, err);
+				debug('write err file:%s retry:%d err: %o', self.file, retry, err);
 				if (retry < self.opts.maxRetry) {
 					self.flush(retry+1);
 					debug('retry write');
@@ -104,10 +104,11 @@ QPD.prototype = {
 	},
 	genfd: function(file) {
 		var self = this;
-		if (file == self.logfile || self._fding) return;
+		if (file == self.file || self._fding) return;
 
 		self.oldfd = self.fd;
-		self.fd = null;
+		// 只要有一次genfd，那么opts的file就会被清掉
+		self.fd = opts.file = null;
 
 		// 旧接口延迟关闭
 		if (self.opts.fdWaitForClose) {
@@ -125,7 +126,7 @@ QPD.prototype = {
 				fs.open(file, self.opts.flag, function(err, fd) {
 					if (!err) {
 						self.fd = fd;
-						self.logfile = file;
+						self.file = file;
 						self._closeOldFd();
 						self.init_();
 					}
