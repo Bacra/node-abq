@@ -9,6 +9,7 @@ var concat	= Array.prototype.concat;
 
 exports = module.exports = main;
 exports.defaults = {
+	logfile			: null,
 	flag			: 'w+',
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候
