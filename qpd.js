@@ -10,7 +10,7 @@ var concat	= Array.prototype.concat;
 exports = module.exports = main;
 exports.defaults = {
 	file			: null,
-	flag			: 'w+',
+	flag			: 'a+',
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候
 	maxLength		: 10000,
@@ -38,7 +38,7 @@ QPD.prototype = {
 		if (this._inited) return;
 		this._inited = true;
 
-		if (logfd.opts.writeInterval) {
+		if (this.opts.writeInterval) {
 			// 定期日志写入文件
 			setInterval(this.write.bind(this), this.opts.writeInterval);
 		}
@@ -81,11 +81,11 @@ QPD.prototype = {
 		self._writing = true;
 
 		// 一次性全部数据 (性能不知道ok不)
-		if (self.writeQuery.length > 1 || !retry) {
+		if (!retry && self.writeQuery.length > 1) {
 			self.writeQuery = [concat.apply([], self.writeQuery)];
 		}
 
-		fs.wirte(fd, self.writeQuery[0].join('\n'), function(err) {
+		fs.write(fd, self.writeQuery[0].join(''), function(err) {
 			self._writing = false;
 			if (err) {
 				retry || (retry = 0);
@@ -108,7 +108,7 @@ QPD.prototype = {
 
 		self.oldfd = self.fd;
 		// 只要有一次genfd，那么opts的file就会被清掉
-		self.fd = opts.file = null;
+		self.fd = self.opts.file = null;
 
 		// 旧接口延迟关闭
 		if (self.opts.fdWaitForClose) {
@@ -137,12 +137,12 @@ QPD.prototype = {
 		}
 	},
 	_closeOldFd: function() {
-		if (self.oldfd) {
-			fs.close(self.oldfd, function(err) {
+		if (this.oldfd) {
+			fs.close(this.oldfd, function(err) {
 				debug('close fd err:%o', err);
 			});
 
-			self.oldfd = null;
+			this.oldfd = null;
 		}
 	}
 };
