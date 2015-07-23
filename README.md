@@ -1,4 +1,4 @@
-node-qpd
+node-qpd  [![Build Status](https://travis-ci.org/Bacra/node-node-qpd.svg?branch=master)](https://travis-ci.org/Bacra/node-node-qpd)
 ==================
 
 Get process swap usage in Linux.

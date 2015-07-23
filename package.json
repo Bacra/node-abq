@@ -7,6 +7,9 @@
     "type": "git",
     "url": "git@github.com:Bacra/node-qpd.git"
   },
+  "scripts": {
+    "test": "node test/test"
+  },
   "keywords": [
     "append",
     "file",
