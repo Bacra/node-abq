@@ -59,6 +59,8 @@ function master() {
 	}
 
 	function assertlog() {
+		console.log('\n=========== assertlog ===========\n');
+
 		var pinfo = {};
 		pids.forEach(function(pid) {pinfo[pid] = []});
 		var gTime = 0;
@@ -67,7 +69,7 @@ function master() {
 			var arr = line.split(',');
 			var times = pinfo[arr[0]];
 			if (arr.length != 3 || !times) {
-				console.log('err line:'+line, arr.length, times, pinfo);
+				console.log('err line:'+line, arr.length);
 				return;
 			}
 
@@ -89,14 +91,13 @@ function master() {
 
 	process.on('exit', function() {
 		flist.forEach(function(item) {
-			item.exit(-9);
+			item.exit && item.exit(-9);
 		});
 		flist = [];
 	});
 
 	while(clientNum--) doFork();
 
-	
 }
 
 

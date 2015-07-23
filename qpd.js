@@ -78,42 +78,64 @@ extend(QPD.prototype, {
 		this.waitQuery = [];
 		this.flush();
 	},
+	flush: function() {
+		this._doFlush(false);
+	},
+	flushSync: function() {
+		this._doFlush(true);
+	},
 	// linux 必须逐个写，否则有可能错乱
-	flush: function(retry) {
-		var self = this;
-		var fd = self.fd || self.oldfd;
-		if (self._writing || !fd || !self.writeQuery.length) return;
+	_doFlush: function(isSync) {
+		var fd = this.fd || this.oldfd;
+		if (this._writing || !fd || !this.writeQuery.length) return;
 
-		self._writing = true;
+		this._writing = true;
 
 		// 一次性全部数据 (性能不知道ok不)
-		if (!retry && self.writeQuery.length > 1) {
-			self.writeQuery = [concat.apply([], self.writeQuery)];
+		if (this.writeQuery.length > 1) {
+			this.writeQuery = [concat.apply([], this.writeQuery)];
 		}
 
-		fs.write(fd, self.writeQuery[0].join(''), function(err) {
-			self._writing = false;
+		this[isSync ? '_flushSync' : '_flush'](fd, new Buffer(this.writeQuery[0].join('')), 0, 0);
+	},
+	_flush: function(fd, buffer, offset, retry) {
+		var self = this;
 
-			if (err) {
-				retry || (retry = 0);
-				debug('write err file:%s retry:%d err: %o', self.file, retry, err);
-				if (retry < self.opts.maxRetry) {
-					self.flush(++retry);
-					self.emit('retry', err, retry);
-					debug('retry write');
-					return;
-				}
-			}
-
-			// 清理写队列
-			self.writeQuery.shift();
-
-			if (self.writeQuery.length) {
-				self.flush();
-			} else {
-				self.emit('flushEnd');
-			}
+		fs.write(fd, buffer, offset, buffer.length-offset, null, function(err, written, buffer) {
+			self._flushcb(err, buffer, written, fd, retry, false);
 		});
+	},
+	_flushSync: function(fd, buffer, offset, retry) {
+		var written;
+		var err;
+		try {
+			written = fs.writeSync(fd, buffer, offset, buffer.length-offset, null);
+		} catch(e) {
+			err = e;
+		}
+
+		this._flushcb(err, buffer, written || 0, fd, retry, true);
+	},
+	_flushcb: function(err, buffer, written, fd, retry, isSync) {
+		if (err) {
+			debug('write err retry:%d err: %o', retry, err);
+			if (retry < this.opts.maxRetry) {
+				this[isSync ? '_flushSync' : '_flush'](fd, buffer, written, ++retry);
+				this.emit('retry', err, retry);
+				debug('retry write');
+				return;
+			}
+		}
+
+		// 清理写队列
+		this.writeQuery.shift();
+		this._writing = false;
+
+		if (this.writeQuery.length) {
+			this._doFlush(isSync);
+		} else {
+			this.emit('flushEnd');
+		}
 	},
 	genfd: function(file) {
 		var self = this;
