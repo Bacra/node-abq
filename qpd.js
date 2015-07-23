@@ -1,6 +1,7 @@
 var fs		= require('fs');
 var path	= require('path');
-var xtend	= require('xtend');
+var events	= require('events');
+var extend	= require('extend');
 var mkdirp	= require('mkdirp');
 var debug	= require('debug')('qpd');
 
@@ -20,7 +21,7 @@ exports.defaults = {
 };
 
 function QPD(opts) {
-	this.opts		= xtend({}, exports.defaults, opts);
+	this.opts		= extend({}, exports.defaults, opts);
 	this.waitQuery	= [];
 	this.writeQuery	= [];
 
@@ -31,9 +32,13 @@ function QPD(opts) {
 	// 声明一下会用到的成员变量
 	this.fd = this.file = this.oldfd = null;
 	this._writing = this._fding = false;
+
+	events.EventEmitter.call(this);
 }
 
-QPD.prototype = {
+require('util').inherits(QPD, events.EventEmitter);
+
+extend(QPD.prototype, {
 	init_: function() {
 		if (this._inited) return;
 		this._inited = true;
@@ -62,6 +67,7 @@ QPD.prototype = {
 				var splitLen = len - opts.writeLength;
 				waitQuery.splice(0, splitLen/*, '========== logfd:empty msg query <len:'+splitLen+'> =========='*/);
 				debug('logfd: empty msg query %d', splitLen);
+				self.emit('empty', splitLen);
 			}
 		} else if (opts.file) {
 			self.genfd(opts.file);
@@ -87,11 +93,13 @@ QPD.prototype = {
 
 		fs.write(fd, self.writeQuery[0].join(''), function(err) {
 			self._writing = false;
+
 			if (err) {
 				retry || (retry = 0);
 				debug('write err file:%s retry:%d err: %o', self.file, retry, err);
 				if (retry < self.opts.maxRetry) {
-					self.flush(retry+1);
+					self.flush(++retry);
+					self.emit('retry', err, retry);
 					debug('retry write');
 					return;
 				}
@@ -99,7 +107,12 @@ QPD.prototype = {
 
 			// 清理写队列
 			self.writeQuery.shift();
-			self.flush();
+
+			if (self.writeQuery.length) {
+				self.flush();
+			} else {
+				self.emit('flushEnd');
+			}
 		});
 	},
 	genfd: function(file) {
@@ -129,6 +142,8 @@ QPD.prototype = {
 						self.file = file;
 						self._closeOldFd();
 						self.init_();
+					} else {
+						self.emit('openError', err, file);
 					}
 
 					self._fding = false;
@@ -137,18 +152,23 @@ QPD.prototype = {
 		}
 	},
 	_closeOldFd: function() {
-		if (this.oldfd) {
-			fs.close(this.oldfd, function(err) {
+		var self = this;
+
+		if (self.oldfd) {
+			fs.close(self.oldfd, function(err) {
 				debug('close fd err:%o', err);
+				self.emit('closeError', err);
 			});
 
-			this.oldfd = null;
+			self.oldfd = null;
 		}
 	}
-};
+});
 
 
 function main(opts) {
 	var qpd = new QPD(opts);
-	return qpd.handler.bind(qpd);
+	var handler = qpd.handler.bind(qpd);
+	handler.qpd = qpd;
+	return handler;
 }
