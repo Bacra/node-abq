@@ -16,7 +16,6 @@ exports.defaults = {
 	// fd还没创建 日志过满的时候
 	maxLength		: 10000,
 	writeInterval	: 400,
-	fdWaitForClose	: 60*1000,
 	maxRetry		: 2
 };
 
@@ -30,8 +29,9 @@ function QPD(opts) {
 	}
 
 	// 声明一下会用到的成员变量
-	this.fd = this.file = this.oldfd = null;
-	this._writing = this._fding = false;
+	this.fd = null;
+	this._writing = false;
+	this._genfd = new GenFd();
 
 	events.EventEmitter.call(this);
 }
@@ -61,14 +61,10 @@ extend(QPD.prototype, {
 				self.write();
 			}
 		} else if (opts.maxLength && len > opts.maxLength) {
-			if (self.oldfd) {
-				self.write();
-			} else {
-				var splitLen = len - opts.writeLength;
-				waitQuery.splice(0, splitLen);
-				debug('logfd: empty msg query %d', splitLen);
-				self.emit('empty', splitLen);
-			}
+			var splitLen = len - opts.writeLength;
+			waitQuery.splice(0, splitLen);
+			debug('logfd: empty msg query %d', splitLen);
+			self.emit('empty', splitLen);
 		} else if (opts.file) {
 			self.genfd(opts.file);
 		}
@@ -92,8 +88,7 @@ extend(QPD.prototype, {
 		this.waitQuery = [];
 	},
 	_doFlush: function(isSync) {
-		var fd = this.fd || this.oldfd;
-		if (this._writing || !fd || !this.writeQuery.length) return;
+		if (this._writing || !this.fd || !this.writeQuery.length) return;
 
 		this._writing = true;
 
@@ -102,33 +97,33 @@ extend(QPD.prototype, {
 			this.writeQuery = [concat.apply([], this.writeQuery)];
 		}
 
-		this[isSync ? '_flushSync' : '_flush'](fd, new Buffer(this.writeQuery[0].join('')), 0, 0);
+		this[isSync ? '_flushSync' : '_flush'](new Buffer(this.writeQuery[0].join('')), 0, 0);
 	},
-	_flush: function(fd, buffer, offset, retry) {
+	_flush: function(buffer, offset, retry) {
 		var self = this;
 
-		fs.write(fd, buffer, offset, buffer.length-offset, null, function(err, written, buffer) {
-			self._flushcb(err, buffer, written, fd, retry, false);
+		fs.write(this.fd, buffer, offset, buffer.length-offset, null, function(err, written, buffer) {
+			self._flushcb(err, buffer, written, retry, false);
 		});
 	},
-	_flushSync: function(fd, buffer, offset, retry) {
+	_flushSync: function(buffer, offset, retry) {
 		var written;
 		var err;
 		try {
-			written = fs.writeSync(fd, buffer, offset, buffer.length-offset, null);
+			written = fs.writeSync(this.fd, buffer, offset, buffer.length-offset, null);
 		} catch(e) {
 			err = e;
 		}
 
-		this._flushcb(err, buffer, written || 0, fd, retry, true);
+		this._flushcb(err, buffer, written || 0, retry, true);
 	},
 	// linux 必须逐个写，否则顺序有可能错乱
 	// 同时也为了方便增加retry
-	_flushcb: function(err, buffer, written, fd, retry, isSync) {
+	_flushcb: function(err, buffer, written, retry, isSync) {
 		if (err) {
 			debug('write err retry:%d err: %o', retry, err);
 			if (retry < this.opts.maxRetry) {
-				this[isSync ? '_flushSync' : '_flush'](fd, buffer, written, ++retry);
+				this[isSync ? '_flushSync' : '_flush'](buffer, written, ++retry);
 				this.emit('retry', err, retry);
 				debug('retry write');
 				return;
@@ -145,58 +140,63 @@ extend(QPD.prototype, {
 			this.emit('flushEnd');
 		}
 	},
-	genfd: function(file) {
+	genfd: function(file, noAutoBind) {
 		var self = this;
-		if (file == self.file || self._fding) return;
-
-		self.oldfd = self.fd;
 		// 只要有一次genfd，那么opts的file就会被清掉
-		self.fd = self.opts.file = null;
+		self.opts.file = null;
 
-		// 旧接口延迟关闭
-		if (self.opts.fdWaitForClose) {
-			setTimeout(self._closeOldFd.bind(self), self.opts.fdWaitForClose);
-		} else {
-			self._closeOldFd();
+		if (typeof file != 'string') {
+			if (noAutoBind !== true) self.fd = file;
+			self.emit('open', null, file, noAutoBind);
+			return;
 		}
 
-		if (!self._fding) {
-			self._fding = true;
-
-			mkdirp(path.dirname(file), function(err) {
-				if (err) return debug('mkdir err:%o', err);
-
-				fs.open(file, self.opts.flag, function(err, fd) {
-					self._fding = false;
-
-					if (!err) {
-						self.fd = fd;
-						self.file = file;
-						self.init_();
-
-						self.emit('open', null, file, !!self.oldfd);
-						self._closeOldFd();
-					} else {
-						self.emit('open', err, file, !!self.oldfd);
-					}
-
-				});
-			});
-		}
+		this._genfd.generate(file, self.opts.flag, function(err, fd) {
+			if (!err && noAutoBind !== true) self.bindfd(fd); 
+			self.emit('open', err, fd, noAutoBind, file);
+		});
 	},
-	_closeOldFd: function() {
-		var self = this;
-
-		if (self.oldfd) {
-			fs.close(self.oldfd, function(err) {
-				debug('close fd err:%o', err);
-				self.emit('closeError', err);
-			});
-
-			self.oldfd = null;
-		}
+	bindfd: function(fd) {
+		this.fd = fd;
+		this.init_();
 	}
 });
+
+
+function GenFd() {
+	this._fding = false;
+	this.fd = this.file = null;
+}
+
+GenFd.prototype = {
+	generate: function(file, flag, callback) {
+		var self = this;
+
+		if (self._fding) {
+			return callback(new Error('opening'));
+		} else if (file == self.file) {
+			return callback(null, self.fd);
+		}
+
+		self._fding = true;
+		self.file = file;
+
+		mkdirp(path.dirname(file), function(err) {
+			if (err) {
+				callback(err);
+				debug('mkdir err:%o', err);
+				return;
+			}
+
+			fs.open(file, flag, function(err, fd) {
+				self._fding = false;
+				if (!err) self.fd = fd;
+				callback(err, fd);
+			});
+		});
+	}
+};
+
 
 
 // 内存管理。。忧伤
