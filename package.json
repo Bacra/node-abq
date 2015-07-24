@@ -1,6 +1,6 @@
 {
   "name": "qpd",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Append data to a file in query.",
   "main": "qpd.js",
   "repository": {

@@ -9,6 +9,7 @@ var concat	= Array.prototype.concat;
 
 
 exports = module.exports = main;
+exports.QPD = QPD;
 exports.defaults = {
 	file			: null,
 	flag			: 'a+',
@@ -47,7 +48,13 @@ extend(QPD.prototype, {
 			// 定期日志写入文件
 			setInterval(this.write.bind(this), this.opts.writeInterval);
 		}
+
+		bindProcess();
 	},
+	/**
+	 * 写数据的入口
+	 * @param  {String} msg
+	 */
 	handler: function(msg) {
 		var self		= this;
 		var waitQuery	= self.waitQuery;
@@ -87,6 +94,51 @@ extend(QPD.prototype, {
 		this.writeQuery.push(this.waitQuery);
 		this.waitQuery = [];
 	},
+	genfd: function(file, noAutoBind) {
+		var self = this;
+		// 只要有一次genfd，那么opts的file就会被清掉
+		self.opts.file = null;
+
+		if (typeof file != 'string') {
+			if (noAutoBind !== true) self.fd = file;
+			self.emit('open', null, file, noAutoBind);
+			return;
+		}
+
+		this._genfd.generate(file, self.opts.flag, function(err, fd) {
+			if (!err && noAutoBind !== true) self.bindfd(fd); 
+			self.emit('open', err, fd, noAutoBind, file);
+		});
+	},
+	bindfd: function(fd) {
+		this.fd = fd;
+		this.init_();
+	},
+	destroy: function() {
+		if (!this.fd) return;
+
+		// 将所有数据移动到write 队列
+		this.toWriteQuery();
+		var isWriteLog = true;
+		this.emit('processExit', this._writing, function() {isWriteLog = false});
+
+		if (this._writing) {
+			this._writing = false;
+
+			if (isWriteLog) {
+				this.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [qpd] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
+				this.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [qpd] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
+			}
+		}
+
+		// 直接同步写
+		this.flushSync();
+		try {
+			fs.closeSync(this.fd);
+		} catch(e) {}
+		this.fd = null;
+	},
+
 	_doFlush: function(isSync) {
 		if (this._writing || !this.fd || !this.writeQuery.length) return;
 
@@ -139,26 +191,6 @@ extend(QPD.prototype, {
 		} else {
 			this.emit('flushEnd');
 		}
-	},
-	genfd: function(file, noAutoBind) {
-		var self = this;
-		// 只要有一次genfd，那么opts的file就会被清掉
-		self.opts.file = null;
-
-		if (typeof file != 'string') {
-			if (noAutoBind !== true) self.fd = file;
-			self.emit('open', null, file, noAutoBind);
-			return;
-		}
-
-		this._genfd.generate(file, self.opts.flag, function(err, fd) {
-			if (!err && noAutoBind !== true) self.bindfd(fd); 
-			self.emit('open', err, fd, noAutoBind, file);
-		});
-	},
-	bindfd: function(fd) {
-		this.fd = fd;
-		this.init_();
 	}
 });
 
@@ -207,7 +239,6 @@ function main(opts) {
 	handler.qpd = qpd;
 	qpds.push(qpd);
 
-	bindProcess();
 	return handler;
 }
 
@@ -217,23 +248,7 @@ function bindProcess() {
 
 	process.on('exit', function() {
 		qpds.forEach(function(qpd) {
-
-			// 将所有数据移动到write 队列
-			qpd.toWriteQuery();
-			var isWriteLog = true;
-			qpd.emit('processExit', qpd._writing, function() {isWriteLog = false});
-
-			if (qpd._writing) {
-				qpd._writing = false;
-
-				if (isWriteLog) {
-					qpd.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [qpd] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
-					qpd.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [qpd] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
-				}
-			}
-
-			// 直接同步写
-			qpd.flushSync();
+			qpd.destroy();
 		});
 	});
 }
