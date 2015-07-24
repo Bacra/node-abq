@@ -31,7 +31,7 @@ function QPD(opts) {
 
 	// 声明一下会用到的成员变量
 	this.fd = null;
-	this._writing = false;
+	this._writing = this._destroyed = false;
 	this._genfd = new GenFd();
 
 	events.EventEmitter.call(this);
@@ -56,6 +56,8 @@ extend(QPD.prototype, {
 	 * @param  {String} msg
 	 */
 	handler: function(msg) {
+		if (this._destroyed) return debug('no msg: has destroyed');
+
 		var self		= this;
 		var waitQuery	= self.waitQuery;
 		var len			= waitQuery.length;
@@ -110,11 +112,17 @@ extend(QPD.prototype, {
 			self.emit('open', err, fd, noAutoBind, file);
 		});
 	},
-	bindfd: function(fd) {
+	bindfd: function(fd, noAutoClose) {
+		// 自动关闭之前的fd
+		if (this.fd && noAutoClose !== true) fs.close(this.fd);
+
 		this.fd = fd;
 		this.init_();
 	},
 	destroy: function() {
+		if (this._destroyed) return debug('destroy again');
+		this._destroyed = true;
+
 		if (!this.fd) return;
 
 		// 将所有数据移动到write 队列
@@ -137,6 +145,8 @@ extend(QPD.prototype, {
 			fs.closeSync(this.fd);
 		} catch(e) {}
 		this.fd = null;
+
+		this.emit('destroy');
 	},
 
 	_doFlush: function(isSync) {
@@ -231,13 +241,23 @@ GenFd.prototype = {
 
 
 
-// 内存管理。。忧伤
 var qpds = [];
 function main(opts) {
 	var qpd = new QPD(opts);
 	var handler = qpd.handler.bind(qpd);
 	handler.qpd = qpd;
 	qpds.push(qpd);
+
+	// 销毁的时候从队列中移除
+	qpd.once('destroy', function() {
+		var index = qpds.indexOf(qpd);
+		if (index != -1) {
+			qpds.splice(qpds.indexOf(qpd), 1);
+			debug('remove qpds %d', index);
+		} else {
+			debug('remove qpds err:-1');
+		}
+	});
 
 	return handler;
 }
