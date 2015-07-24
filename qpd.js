@@ -147,6 +147,7 @@ extend(QPD.prototype, {
 		this.fd = null;
 
 		this.emit('destroy');
+		this.removeAllListeners();
 	},
 
 	_doFlush: function(isSync) {
