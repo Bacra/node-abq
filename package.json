@@ -1,6 +1,6 @@
 {
   "name": "qpd",
-  "version": "0.0.4",
+  "version": "0.1.0",
   "description": "Append data to a file in query.",
   "main": "qpd.js",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git@github.com:Bacra/node-qpd.git"
   },
   "scripts": {
-    "test": "node test/test"
+    "test": "node test/index"
   },
   "keywords": [
     "append",

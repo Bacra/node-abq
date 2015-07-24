@@ -1,7 +1,7 @@
-require('debug').enable('qpd');
-var logfile	= __dirname+'/tmp.log';
-var lognum	= 100000;
-var assert	= require('assert');
+var logfile		= __dirname+'/tmp.log';
+var lognum		= 100000;
+var clientnum	= 8;
+var assert		= require('assert');
 
 
 function master() {
@@ -19,9 +19,9 @@ function master() {
 	}
 	env.CLUSTER_APP_FORK_MARK = '1';
 
-	var clientNum = clientNum2 = 8;
 	var flist = [];
 	var pids = [];
+	var startTime;
 
 	function doFork() {
 		var f = fork(__filename, [], {env: env});
@@ -33,11 +33,12 @@ function master() {
 
 				console.log('master: fork online');
 
-				if (flist.length == clientNum2) {
+				if (flist.length == clientnum) {
 					console.log('master:work');
 					flist.forEach(function(item) {
 						item.send('work');
 					});
+					startTime = Date.now();
 				}
 			} else if (msg == 'end') {
 				f.kill('SIGTERM');
@@ -47,6 +48,7 @@ function master() {
 
 					// 自己也退出吧
 					if (!flist.length) {
+						console.log('use time:'+(Date.now() - startTime));
 						assertlog();
 						process.exit();
 					}
@@ -63,7 +65,7 @@ function master() {
 
 		var pinfo = {};
 		pids.forEach(function(pid) {pinfo[pid] = []});
-		var gTime = 0;
+		// var gTime = 0;
 
 		fs.readFileSync(logfile, {encoding: 'utf8'}).split('\n').forEach(function(line) {
 			var arr = line.split(',');
@@ -79,7 +81,7 @@ function master() {
 			// assert(gTime < time, 'time err: '+line);
 			assert(!times.length || index == times[times.length-1].index -1, 'index err: '+line);
 
-			gTime = time;
+			// gTime = time;
 			times.push({t: time, index: index});
 		});
 
@@ -96,8 +98,8 @@ function master() {
 		flist = [];
 	});
 
-	while(clientNum--) doFork();
-
+	var clientNum2 = clientnum;
+	while(clientNum2--) doFork();
 }
 
 
@@ -107,20 +109,24 @@ function fork() {
 	var logindex = lognum;
 
 	function doLog() {
-		var splitKey = Math.random()*100;
+		if (logindex <= 0) return;
+
+		var splitKey = Math.random()*1000;
 		while(logindex-- % splitKey > 0) {
 			var date = new Date();
-			log('\n'+process.pid+','+(date.getTime()*10000000+date.getMilliseconds())+','+logindex);
+			log('\n'+process.pid+','+(date.getTime()*100000+date.getMilliseconds())+','+logindex);
 		}
 
 		if (logindex <= 0) {
 			console.log(process.pid+' log end');
 		} else {
-			setTimeout(doLog, 1);
+			setTimeout(doLog, 5);
 		}
 	}
 
 	log.qpd.on('flushEnd', function() {
+		setTimeout(doLog, 2);
+
 		if (!log.qpd.waitQuery.length && logindex <= 0) {
 			process.send('end');
 		}

@@ -65,7 +65,7 @@ extend(QPD.prototype, {
 				self.write();
 			} else {
 				var splitLen = len - opts.writeLength;
-				waitQuery.splice(0, splitLen/*, '========== logfd:empty msg query <len:'+splitLen+'> =========='*/);
+				waitQuery.splice(0, splitLen);
 				debug('logfd: empty msg query %d', splitLen);
 				self.emit('empty', splitLen);
 			}
@@ -74,9 +74,12 @@ extend(QPD.prototype, {
 		}
 	},
 	write: function() {
-		this.writeQuery.push(this.waitQuery);
-		this.waitQuery = [];
+		this.toWriteQuery();
 		this.flush();
+	},
+	writeSync: function() {
+		this.toWriteQuery();
+		this.flushSync();
 	},
 	flush: function() {
 		this._doFlush(false);
@@ -84,7 +87,10 @@ extend(QPD.prototype, {
 	flushSync: function() {
 		this._doFlush(true);
 	},
-	// linux 必须逐个写，否则有可能错乱
+	toWriteQuery: function() {
+		this.writeQuery.push(this.waitQuery);
+		this.waitQuery = [];
+	},
 	_doFlush: function(isSync) {
 		var fd = this.fd || this.oldfd;
 		if (this._writing || !fd || !this.writeQuery.length) return;
@@ -116,6 +122,8 @@ extend(QPD.prototype, {
 
 		this._flushcb(err, buffer, written || 0, fd, retry, true);
 	},
+	// linux 必须逐个写，否则顺序有可能错乱
+	// 同时也为了方便增加retry
 	_flushcb: function(err, buffer, written, fd, retry, isSync) {
 		if (err) {
 			debug('write err retry:%d err: %o', retry, err);
@@ -159,16 +167,19 @@ extend(QPD.prototype, {
 				if (err) return debug('mkdir err:%o', err);
 
 				fs.open(file, self.opts.flag, function(err, fd) {
+					self._fding = false;
+
 					if (!err) {
 						self.fd = fd;
 						self.file = file;
-						self._closeOldFd();
 						self.init_();
+
+						self.emit('open', null, file, !!self.oldfd);
+						self._closeOldFd();
 					} else {
-						self.emit('openError', err, file);
+						self.emit('open', err, file, !!self.oldfd);
 					}
 
-					self._fding = false;
 				});
 			});
 		}
@@ -188,9 +199,41 @@ extend(QPD.prototype, {
 });
 
 
+// 内存管理。。忧伤
+var qpds = [];
 function main(opts) {
 	var qpd = new QPD(opts);
 	var handler = qpd.handler.bind(qpd);
 	handler.qpd = qpd;
+	qpds.push(qpd);
+
+	bindProcess();
 	return handler;
+}
+
+function bindProcess() {
+	if (bindProcess._inited) return;
+	bindProcess._inited = true;
+
+	process.on('exit', function() {
+		qpds.forEach(function(qpd) {
+
+			// 将所有数据移动到write 队列
+			qpd.toWriteQuery();
+			var isWriteLog = true;
+			qpd.emit('processExit', qpd._writing, function() {isWriteLog = false});
+
+			if (qpd._writing) {
+				qpd._writing = false;
+
+				if (isWriteLog) {
+					qpd.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [qpd] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
+					qpd.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [qpd] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
+				}
+			}
+
+			// 直接同步写
+			qpd.flushSync();
+		});
+	});
 }
