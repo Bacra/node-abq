@@ -1,18 +1,20 @@
-node-qpd  [![Build Status](https://travis-ci.org/Bacra/node-qpd.svg?branch=master)](https://travis-ci.org/Bacra/node-qpd)
+node-adq  [![Build Status](https://travis-ci.org/Bacra/node-adq.svg?branch=master)](https://travis-ci.org/Bacra/node-adq)
 ==================
 
-Get process swap usage in Linux.
+A(ppend) D(ata) (in) Q(uery)
+
+Append data to a file in query.
 
 ## Install
 
 ```
-npm i qpd --save
+npm i adq --save
 ```
 
 ## Usage
 
 ```javascript
-var qpd = require('qpd')({file:'/var/log/w.log'});
-qpd('msg1');
-qpd('msg2');
+var adq = require('adq')({file:'/var/log/w.log'});
+adq('msg1');
+adq('msg2');
 ```

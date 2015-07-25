@@ -3,7 +3,7 @@ var path	= require('path');
 var events	= require('events');
 var extend	= require('extend');
 var mkdirp	= require('mkdirp');
-var debug	= require('debug')('qpd');
+var debug	= require('debug')('adq');
 
 var concat	= Array.prototype.concat;
 
@@ -134,8 +134,8 @@ extend(QPD.prototype, {
 			this._writing = false;
 
 			if (isWriteLog) {
-				this.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [qpd] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
-				this.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [qpd] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
+				this.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [adq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
+				this.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [adq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
 			}
 		}
 
@@ -242,21 +242,21 @@ GenFd.prototype = {
 
 
 
-var qpds = [];
+var adqs = [];
 function main(opts) {
-	var qpd = new QPD(opts);
-	var handler = qpd.handler.bind(qpd);
-	handler.qpd = qpd;
-	qpds.push(qpd);
+	var adq = new QPD(opts);
+	var handler = adq.handler.bind(adq);
+	handler.adq = adq;
+	adqs.push(adq);
 
 	// 销毁的时候从队列中移除
-	qpd.once('destroy', function() {
-		var index = qpds.indexOf(qpd);
+	adq.once('destroy', function() {
+		var index = adqs.indexOf(adq);
 		if (index != -1) {
-			qpds.splice(qpds.indexOf(qpd), 1);
-			debug('remove qpds %d', index);
+			adqs.splice(adqs.indexOf(adq), 1);
+			debug('remove adqs %d', index);
 		} else {
-			debug('remove qpds err:-1');
+			debug('remove adqs err:-1');
 		}
 	});
 
@@ -268,8 +268,8 @@ function bindProcess() {
 	bindProcess._inited = true;
 
 	process.on('exit', function() {
-		qpds.forEach(function(qpd) {
-			qpd.destroy();
+		adqs.forEach(function(adq) {
+			adq.destroy();
 		});
 	});
 }

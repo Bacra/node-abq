@@ -1,11 +1,11 @@
 {
-  "name": "qpd",
+  "name": "adq",
   "version": "0.1.3",
   "description": "Append data to a file in query.",
-  "main": "qpd.js",
+  "main": "adq.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:Bacra/node-qpd.git"
+    "url": "git@github.com:Bacra/node-adq.git"
   },
   "scripts": {
     "test": "node test/index"
@@ -19,9 +19,9 @@
   "author": "Bacra Woo",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Bacra/node-qpd/issues"
+    "url": "https://github.com/Bacra/node-adq/issues"
   },
-  "homepage": "https://github.com/Bacra/node-qpd",
+  "homepage": "https://github.com/Bacra/node-adq",
   "dependencies": {
     "debug": "^2.2.0",
     "extend": "^3.0.0",
