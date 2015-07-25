@@ -1,3 +1,5 @@
+'use strict';
+
 var fs		= require('fs');
 var path	= require('path');
 var events	= require('events');
@@ -9,7 +11,7 @@ var concat	= Array.prototype.concat;
 
 
 exports = module.exports = main;
-exports.QPD = QPD;
+exports.cls = ADQ;
 exports.defaults = {
 	file			: null,
 	flag			: 'a+',
@@ -20,7 +22,7 @@ exports.defaults = {
 	maxRetry		: 2
 };
 
-function QPD(opts) {
+function ADQ(opts) {
 	this.opts		= extend({}, exports.defaults, opts);
 	this.waitQuery	= [];
 	this.writeQuery	= [];
@@ -37,9 +39,9 @@ function QPD(opts) {
 	events.EventEmitter.call(this);
 }
 
-require('util').inherits(QPD, events.EventEmitter);
+require('util').inherits(ADQ, events.EventEmitter);
 
-extend(QPD.prototype, {
+extend(ADQ.prototype, {
 	init_: function() {
 		if (this._inited) return;
 		this._inited = true;
@@ -240,9 +242,9 @@ GenFd.prototype = {
 
 var abqs = [];
 function main(opts) {
-	var abq = new QPD(opts);
+	var abq = new ADQ(opts);
 	var handler = abq.handler.bind(abq);
-	handler.abq = abq;
+	handler.instance = abq;
 	abqs.push(abq);
 
 	// 销毁的时候从队列中移除
