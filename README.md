@@ -1,20 +1,20 @@
-node-adq  [![Build Status](https://travis-ci.org/Bacra/node-adq.svg?branch=master)](https://travis-ci.org/Bacra/node-adq)
+node-abq  [![Build Status](https://travis-ci.org/Bacra/node-abq.svg?branch=master)](https://travis-ci.org/Bacra/node-abq)
 ==================
 
-A(ppend) D(ata) (in) Q(uery)
+A(ppend) B(uffer) (in) Q(uery)
 
 Append data to a file in query.
 
 ## Install
 
 ```
-npm i adq --save
+npm i abq --save
 ```
 
 ## Usage
 
 ```javascript
-var adq = require('adq')({file:'/var/log/w.log'});
-adq('msg1');
-adq('msg2');
+var abq = require('abq')({file:'/var/log/w.log'});
+abq('msg1');
+abq(new Buffer('msg2'));
 ```

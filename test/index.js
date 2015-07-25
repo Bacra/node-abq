@@ -1,4 +1,4 @@
-require('debug').enable('adq');
+require('debug').enable('abq');
 
 var fork = require('child_process').fork;
 

@@ -124,10 +124,10 @@ function fork() {
 		}
 	}
 
-	log.adq.on('flushEnd', function() {
+	log.abq.on('flushEnd', function() {
 		setTimeout(doLog, 2);
 
-		if (!log.adq.waitQuery.length && logindex <= 0) {
+		if (!log.abq.waitQuery.length && logindex <= 0) {
 			process.send('end');
 		}
 	});

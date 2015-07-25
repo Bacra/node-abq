@@ -1,11 +1,11 @@
 {
-  "name": "adq",
-  "version": "0.1.3",
+  "name": "abq",
+  "version": "0.1.4",
   "description": "Append data to a file in query.",
-  "main": "adq.js",
+  "main": "abq.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:Bacra/node-adq.git"
+    "url": "git@github.com:Bacra/node-abq.git"
   },
   "scripts": {
     "test": "node test/index"
@@ -19,9 +19,9 @@
   "author": "Bacra Woo",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Bacra/node-adq/issues"
+    "url": "https://github.com/Bacra/node-abq/issues"
   },
-  "homepage": "https://github.com/Bacra/node-adq",
+  "homepage": "https://github.com/Bacra/node-abq",
   "dependencies": {
     "debug": "^2.2.0",
     "extend": "^3.0.0",

@@ -3,7 +3,7 @@ var path	= require('path');
 var events	= require('events');
 var extend	= require('extend');
 var mkdirp	= require('mkdirp');
-var debug	= require('debug')('adq');
+var debug	= require('debug')('abq');
 
 var concat	= Array.prototype.concat;
 
@@ -134,8 +134,8 @@ extend(QPD.prototype, {
 			this._writing = false;
 
 			if (isWriteLog) {
-				this.writeQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [adq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
-				this.writeQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [adq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
+				this.writeQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
+				this.writeQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
 			}
 		}
 
@@ -238,21 +238,21 @@ GenFd.prototype = {
 
 
 
-var adqs = [];
+var abqs = [];
 function main(opts) {
-	var adq = new QPD(opts);
-	var handler = adq.handler.bind(adq);
-	handler.adq = adq;
-	adqs.push(adq);
+	var abq = new QPD(opts);
+	var handler = abq.handler.bind(abq);
+	handler.abq = abq;
+	abqs.push(abq);
 
 	// 销毁的时候从队列中移除
-	adq.once('destroy', function() {
-		var index = adqs.indexOf(adq);
+	abq.once('destroy', function() {
+		var index = abqs.indexOf(abq);
 		if (index != -1) {
-			adqs.splice(adqs.indexOf(adq), 1);
-			debug('remove adqs %d', index);
+			abqs.splice(abqs.indexOf(abq), 1);
+			debug('remove abqs %d', index);
 		} else {
-			debug('remove adqs err:-1');
+			debug('remove abqs err:-1');
 		}
 	});
 
@@ -264,8 +264,8 @@ function bindProcess() {
 	bindProcess._inited = true;
 
 	process.on('exit', function() {
-		adqs.forEach(function(adq) {
-			adq.destroy();
+		abqs.forEach(function(abq) {
+			abq.destroy();
 		});
 	});
 }
