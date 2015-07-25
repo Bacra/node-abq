@@ -152,15 +152,11 @@ extend(QPD.prototype, {
 
 	_doFlush: function(isSync) {
 		if (this._writing || !this.fd || !this.writeQuery.length) return;
-
 		this._writing = true;
 
 		// 一次性全部数据 (性能不知道ok不)
-		if (this.writeQuery.length > 1) {
-			this.writeQuery = [concat.apply([], this.writeQuery)];
-		}
-
-		this[isSync ? '_flushSync' : '_flush'](new Buffer(this.writeQuery[0].join('')), 0, 0);
+		this[isSync ? '_flushSync' : '_flush'](new Buffer((this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]).join('')), 0, 0);
+		this.writeQuery = [];
 	},
 	_flush: function(buffer, offset, retry) {
 		var self = this;
