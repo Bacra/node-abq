@@ -63,7 +63,7 @@ extend(QPD.prototype, {
 		var len			= waitQuery.length;
 		var opts		= self.opts;
 
-		waitQuery.push(msg);
+		waitQuery.push(Buffer.isBuffer(msg) ? msg : new Buffer(typeof msg == 'string' ? msg : ''+msg));
 
 		if (self.fd) {
 			if (len > opts.writeLength) {
@@ -134,8 +134,8 @@ extend(QPD.prototype, {
 			this._writing = false;
 
 			if (isWriteLog) {
-				this.writeQuery.unshift('\n\n↓↓↓↓↓↓↓↓↓↓ [adq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n');
-				this.writeQuery.push('\n\n↑↑↑↑↑↑↑↑↑↑ [adq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n');
+				this.writeQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [adq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
+				this.writeQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [adq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
 			}
 		}
 
@@ -155,7 +155,7 @@ extend(QPD.prototype, {
 		this._writing = true;
 
 		// 一次性全部数据 (性能不知道ok不)
-		this[isSync ? '_flushSync' : '_flush'](new Buffer((this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]).join('')), 0, 0);
+		this[isSync ? '_flushSync' : '_flush'](Buffer.concat(this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]), 0, 0);
 		this.writeQuery = [];
 	},
 	_flush: function(buffer, offset, retry) {
