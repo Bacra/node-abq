@@ -8,7 +8,7 @@
     "url": "git@github.com:Bacra/node-abq.git"
   },
   "scripts": {
-    "test": "node test/index"
+    "test": "mocha test/test_*.js"
   },
   "keywords": [
     "append",

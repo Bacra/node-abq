@@ -14,6 +14,7 @@ exports = module.exports = main;
 exports.cls = ADQ;
 exports.defaults = {
 	file			: null,
+	fd				: null,
 	flag			: 'a+',
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候
@@ -32,7 +33,7 @@ function ADQ(opts) {
 	}
 
 	// 声明一下会用到的成员变量
-	this.fd = null;
+	this.fd = this.opts.fd;
 	this._writing = this._destroyed = false;
 	this._genfd = new GenFd();
 
