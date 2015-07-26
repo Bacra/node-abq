@@ -1,8 +1,11 @@
-var logfile = __dirname+'/tmp2.log';
+function getlogfile(type) {
+	return __dirname+'/tmp_proc_exit_'+type+'.log';
+}
 
-function master() {
+function master(type, lognum) {
 	var fs = require('fs');
 	var assert = require('assert');
+	var logfile = getlogfile(type);
 
 	describe('process_exit', function() {
 
@@ -27,17 +30,22 @@ function master() {
 				});
 		});
 
-		it('assertlogfile', function() {
-			assert(fs.existsSync(logfile));		
-			assert.equal(fs.readFileSync(logfile, {encoding: 'utf8'}), 'some msg');
+		it('assertlogfile-'+type, function() {
+			assert(fs.existsSync(logfile));
+			var cont = fs.readFileSync(logfile, {encoding: 'utf8'});
+			assert.ok(!!cont)
+			assert.equal(cont, new Array(lognum+1).join(type+'\n'));
 		});
 	});
 }
 
 
-function fork() {
+function fork(type, lognum) {
+	var logfile = getlogfile(type);
 	var log = require('../')({file: logfile, flag: 'w+'});
-	log('some msg');
+	while(lognum--) {
+		log(type+'\n');
+	}
 
 	log.instance.on('open', function() {
 		process.exit();
@@ -45,8 +53,12 @@ function fork() {
 }
 
 // start
-if (process.env && process.env.CLUSTER_APP_FORK_MARK) {
-	fork();
-} else {
-	master();
+var isMaster = !process.env || !process.env.CLUSTER_APP_FORK_MARK;
+
+function assertlog(type, lognum) {
+	isMaster ? master.apply(null, arguments) : fork.apply(null, arguments);
 }
+
+assertlog('base1', 1);
+// assertlog('base2', 2);
+

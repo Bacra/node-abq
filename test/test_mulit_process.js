@@ -77,12 +77,11 @@ function master() {
 
 			fs.readFileSync(logfile, {encoding: 'utf8'}).split('\n')
 				.forEach(function(line) {
+					if (!line) return;
 					var arr = line.split(',');
 					var times = pinfo[arr[0]];
-					if (arr.length != 3 || !times) {
-						console.log('err line:'+line, arr.length);
-						return;
-					}
+
+					assert(arr.length == 3 && times, 'err line:'+line, arr.length);
 
 					var time = Number(arr[1]);
 					var index = Number(arr[2]);
