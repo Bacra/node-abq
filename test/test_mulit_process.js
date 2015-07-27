@@ -1,3 +1,8 @@
+var cDebug = require('debug');
+var debug = cDebug('abq:test');
+// cDebug.enable('abq');
+// cDebug.enable('abq:test');
+
 var logfile		= __dirname+'/tmp.log';
 var lognum		= 100000;
 var clientnum	= 8;
@@ -14,7 +19,7 @@ function master() {
 		before(function(done) {
 			this.timeout(120*1000);
 
-			console.log('fork master');
+			debug('fork master');
 			var flist = [];
 			var fork = require('child_process').fork;
 
@@ -37,10 +42,10 @@ function master() {
 						flist.push(f);
 						pids.push(f.pid);
 
-						console.log('master: fork online');
+						debug('master: fork online');
 
 						if (flist.length == clientnum) {
-							console.log('master:work');
+							debug('master:work');
 							flist.forEach(function(item) {
 								item.send('work');
 							});
@@ -58,7 +63,7 @@ function master() {
 							done();
 						}
 					} else {
-						console.warn('master: f index -1');
+						debug('master: f index -1');
 					}
 				});
 			}
@@ -103,7 +108,7 @@ function master() {
 
 
 function fork() {
-	console.log('fork start');
+	debug('fork start');
 	var log = require('../')({file: logfile, writeLength: 20, maxLength: 0});
 	var logindex = lognum;
 
@@ -117,7 +122,7 @@ function fork() {
 		}
 
 		if (logindex <= 0) {
-			console.log(process.pid+' log end');
+			debug(process.pid+' log end');
 		} else {
 			setTimeout(doLog, 5);
 		}
@@ -142,7 +147,7 @@ function fork() {
 
 
 // start
-if (process.env && process.env.CLUSTER_APP_FORK_MARK) {
+if (process.env.CLUSTER_APP_FORK_MARK) {
 	fork();
 } else {
 	master();

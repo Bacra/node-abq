@@ -139,6 +139,7 @@ extend(ADQ.prototype, {
 			if (isWriteLog) {
 				this.writeQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
 				this.writeQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
+
 			}
 		}
 
@@ -146,7 +147,9 @@ extend(ADQ.prototype, {
 		this.flushSync();
 		try {
 			fs.closeSync(this.fd);
-		} catch(e) {}
+		} catch(e) {
+			debug('close err:%o', e);
+		}
 		this.fd = null;
 
 		this.emit('destroy');
@@ -247,16 +250,16 @@ function main(opts) {
 	var handler = abq.handler.bind(abq);
 	handler.instance = abq;
 	abqs.push(abq);
+	debug('new abq %o, query len:%d', opts, abqs.length);
 
 	// 销毁的时候从队列中移除
 	abq.once('destroy', function() {
 		var index = abqs.indexOf(abq);
 		if (index != -1) {
 			abqs.splice(abqs.indexOf(abq), 1);
-			debug('remove abqs %d', index);
-		} else {
-			debug('remove abqs err:-1');
 		}
+
+		debug('remove abqs %d, left len:%d', index, abqs.length);
 	});
 
 	return handler;
@@ -267,8 +270,14 @@ function bindProcess() {
 	bindProcess._inited = true;
 
 	process.on('exit', function() {
-		abqs.forEach(function(abq) {
-			abq.destroy();
-		});
+		var exitlen = 0;
+		var extobj = null;
+		while(abqs[exitlen]) {
+			if (extobj === abqs[0]) {
+				exitlen++;
+			} else {
+				abqs[exitlen].destroy();
+			}
+		}
 	});
 }
