@@ -19,7 +19,7 @@ exports.defaults = {
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候
 	maxLength		: 10000,
-	writeInterval	: 400,
+	writeInterval	: 600,
 	maxRetry		: 2
 };
 
@@ -130,15 +130,15 @@ extend(ADQ.prototype, {
 
 		// 将所有数据移动到write 队列
 		this.toWriteQuery();
-		var isWriteLog = true;
-		this.emit('processExit', this._writing, function() {isWriteLog = false});
+		var isWriteExtLog = true;
+		this.emit('beforeDestroy', this._writing, function() {isWriteExtLog = false});
 
 		if (this._writing) {
 			this._writing = false;
 
-			if (isWriteLog) {
-				this.writeQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
-				this.writeQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
+			if (isWriteExtLog) {
+				this.writeQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
+				this.writeQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
 
 			}
 		}
@@ -151,17 +151,17 @@ extend(ADQ.prototype, {
 			debug('close err:%o', e);
 		}
 		this.fd = null;
-
-		this.emit('destroy');
 		this.removeAllListeners();
+		this.emit('destroy');
 	},
 
 	_doFlush: function(isSync) {
 		if (this._writing || !this.fd || !this.writeQuery.length) return;
 		this._writing = true;
 
-		// 一次性全部数据 (性能不知道ok不)
+		// 一次性全部数据
 		this[isSync ? '_flushSync' : '_flush'](Buffer.concat(this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]), 0, 0);
+		this.emit('flushStart');
 		this.writeQuery = [];
 	},
 	_flush: function(buffer, offset, retry) {
