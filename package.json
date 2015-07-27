@@ -1,6 +1,6 @@
 {
   "name": "abq",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Append data to a file in query.",
   "main": "abq.js",
   "repository": {
@@ -8,7 +8,7 @@
     "url": "git@github.com:Bacra/node-abq.git"
   },
   "scripts": {
-    "test": "mocha test/test_*.js"
+    "test": "./node_modules/.bin/mocha test/test_*.js"
   },
   "keywords": [
     "append",
@@ -26,5 +26,8 @@
     "debug": "^2.2.0",
     "extend": "^3.0.0",
     "mkdirp": "^0.5.1"
+  },
+  "devDependencies": {
+    "mocha": "^2.2.5"
   }
 }

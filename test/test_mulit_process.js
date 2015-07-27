@@ -15,9 +15,9 @@ function master() {
 
 	describe('mulit_process', function() {
 		var pids = [];
+		this.timeout(120*1000);
 
 		before(function(done) {
-			this.timeout(120*1000);
 
 			debug('fork master');
 			var flist = [];
