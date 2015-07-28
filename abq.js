@@ -6,6 +6,7 @@ var events	= require('events');
 var extend	= require('extend');
 var mkdirp	= require('mkdirp');
 var debug	= require('debug')('abq');
+var async	= require('async');
 
 var concat	= Array.prototype.concat;
 
@@ -16,6 +17,7 @@ exports.defaults = {
 	file			: null,
 	fd				: null,
 	flag			: 'a+',
+	mode			: parseInt('0644', 8),
 	// 超过写的队列就准备写入文件
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候  0 为不限制
@@ -110,7 +112,7 @@ extend(ADQ.prototype, {
 			return;
 		}
 
-		this._genfd.generate(file, self.opts.flag, function(err, fd) {
+		this._genfd.generate(file, self.opts.flag, this.opts.mode, function(err, fd) {
 			if (!err && noAutoBind !== true) self.bindfd(fd); 
 			self.emit('open', err, fd, noAutoBind, file);
 		});
@@ -218,7 +220,7 @@ function GenFd() {
 }
 
 GenFd.prototype = {
-	generate: function(file, flag, callback) {
+	generate: function(file, flag, mode, callback) {
 		var self = this;
 
 		if (self._fding) {
@@ -230,18 +232,34 @@ GenFd.prototype = {
 		self._fding = true;
 		self.file = file;
 
-		mkdirp(path.dirname(file), function(err) {
-			if (err) {
-				callback(err);
-				debug('mkdir err:%o', err);
-				return;
+		var isExists = false;
+		var thisFd = null;
+		async.series([
+			function(callback) {
+				fs.exists(file, function(exists) {
+					isExists = exists;
+					callback();
+				});
+			},
+			function(callback) {
+				if (isExists) return callback();
+				mkdirp(path.dirname(file), callback)
+			},
+			function(callback) {
+				fs.open(file, flag, function(err, fd) {
+					thisFd = fd;
+					callback(err, fd);
+				});
+			},
+			function(callback) {
+				fs.fchmod(thisFd, mode, callback);
 			}
-
-			fs.open(file, flag, function(err, fd) {
-				self._fding = false;
-				if (!err) self.fd = fd;
-				callback(err, fd);
-			});
+		], function(err) {
+			if (!err) {
+				self.fd = thisFd;
+			}
+			self._fding = false;
+			callback(err, thisFd);
 		});
 	}
 };

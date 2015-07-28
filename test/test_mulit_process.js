@@ -3,7 +3,7 @@ var debug = cDebug('abq:test');
 // cDebug.enable('abq');
 // cDebug.enable('abq:test');
 
-var logfile		= __dirname+'/tmp.log';
+var logfile		= __dirname+'/tmp/mulit_process.log';
 var lognum		= 100000;
 var clientnum	= 8;
 

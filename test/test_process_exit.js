@@ -6,7 +6,7 @@ var debug = cDebug('abq:test');
 var assert = require('assert');
 
 function getlogfile(type) {
-	return __dirname+'/tmp_proc_exit_'+type+'.log';
+	return __dirname+'/tmp/proc_exit_'+type+'.log';
 }
 
 function whileLogfile(type, num, callback) {

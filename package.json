@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/Bacra/node-abq",
   "dependencies": {
+    "async": "^1.4.0",
     "debug": "^2.2.0",
     "extend": "^3.0.0",
     "mkdirp": "^0.5.1"
