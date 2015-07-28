@@ -3,6 +3,8 @@ var debug = cDebug('abq:test');
 // cDebug.enable('abq');
 // cDebug.enable('abq:test');
 
+var assert = require('assert');
+
 function getlogfile(type) {
 	return __dirname+'/tmp_proc_exit_'+type+'.log';
 }
@@ -16,7 +18,6 @@ function whileLogfile(type, num, callback) {
 
 function master(type, lognum, logfiles) {
 	var fs = require('fs');
-	var assert = require('assert');
 	lognum || (lognum = 1);
 	logfiles || (logfiles = 1);
 
@@ -67,15 +68,34 @@ function fork() {
 	var logfiles = Number(process.env.CLUSTER_APP_LOGFILES);
 
 	var fnum = logfiles;
-	whileLogfile(type, logfiles, function(logfile) {
+	whileLogfile(type, logfiles, function(logfile, index) {
 		debug('gen file: %s', logfile);
-		var log = require('../')({file: logfile, flag: 'w+'});
+		var log = require('../')({file: logfile, flag: 'w+', maxLength: 0, writeInterval: 100, writeLength: 0});
 		var lnum = lognum;
 		while(lnum--) log(type+'\n');
 
-		log.instance.on('open', function() {
-			if (--fnum <= 0) process.exit();
-		});
+		var flushStarted = false;
+		log.instance.on('flushStart', function() {
+				var abq = this;
+				if (flushStarted) return;
+				flushStarted = true;
+
+				debug('flushStart: %d', index);
+				if (--fnum <= 0) {
+					process.nextTick(function() {
+						debug('before exit');
+
+						assert(abq.isWriting());
+						process.exit();
+						assert(!abq.isWriting());
+					});
+				}
+			})
+			.on('beforeDestroy', function(noWrite) {
+				debug('before destroy: %d', index);
+				// assert(this.isWriting());
+				noWrite();
+			});
 	});
 }
 
