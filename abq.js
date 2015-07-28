@@ -16,10 +16,11 @@ exports.defaults = {
 	file			: null,
 	fd				: null,
 	flag			: 'a+',
+	// 超过写的队列就准备写入文件
 	writeLength		: 100,
-	// fd还没创建 日志过满的时候
+	// fd还没创建 日志过满的时候  0 为不限制
 	maxLength		: 10000,
-	writeInterval	: 600,
+	writeInterval	: 1000,
 	maxRetry		: 2
 };
 
@@ -28,9 +29,8 @@ function ADQ(opts) {
 	this.waitQuery	= [];
 	this.writeQuery	= [];
 
-	if (this.opts.maxLength && this.opts.maxLength < this.opts.writeLength) {
-		this.opts.maxLength = this.opts.writeLength;
-	}
+	if (this.opts.writeLength < 0) this.opts.writeLength = 0;
+	if (this.opts.maxLength && this.opts.maxLength < this.opts.writeLength) this.opts.maxLength = this.opts.writeLength;
 
 	// 声明一下会用到的成员变量
 	this.fd = this.opts.fd;
@@ -123,36 +123,40 @@ extend(ADQ.prototype, {
 		this.init_();
 	},
 	destroy: function() {
-		if (this._destroyed) return debug('destroy again');
+		if (this._destroyed) return debug('destroy again %s', new Error('destroy again').stack);
 		this._destroyed = true;
 
-		if (!this.fd) return;
+		if (this.fd) {
+			// 将所有数据移动到write 队列
+			this.toWriteQuery();
+			var isWriteExtLog = true;
+			this.emit('beforeDestroy', function() {isWriteExtLog = false});
 
-		// 将所有数据移动到write 队列
-		this.toWriteQuery();
-		var isWriteExtLog = true;
-		this.emit('beforeDestroy', this._writing, function() {isWriteExtLog = false});
+			if (this._writing) {
+				this._writing = false;
 
-		if (this._writing) {
-			this._writing = false;
+				if (isWriteExtLog) {
+					this.writeQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
+					this.writeQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
 
-			if (isWriteExtLog) {
-				this.writeQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
-				this.writeQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
-
+				}
 			}
+
+			// 直接同步写
+			this.flushSync();
+			try {
+				fs.closeSync(this.fd);
+			} catch(e) {
+				debug('close err:%o', e);
+			}
+			this.fd = null;
 		}
 
-		// 直接同步写
-		this.flushSync();
-		try {
-			fs.closeSync(this.fd);
-		} catch(e) {
-			debug('close err:%o', e);
-		}
-		this.fd = null;
 		this.removeAllListeners();
 		this.emit('destroy');
+	},
+	isWriting: function() {
+		return this._writing;
 	},
 
 	_doFlush: function(isSync) {
@@ -276,6 +280,7 @@ function bindProcess() {
 			if (extobj === abqs[0]) {
 				exitlen++;
 			} else {
+				extobj = abqs[exitlen];
 				abqs[exitlen].destroy();
 			}
 		}
