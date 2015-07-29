@@ -16,7 +16,7 @@ exports.cls = ADQ;
 exports.defaults = {
 	file			: null,
 	fd				: null,
-	flag			: 'a+',
+	flag			: 'a',
 	mode			: parseInt('0644', 8),
 	// 超过写的队列就准备写入文件
 	writeLength		: 100,

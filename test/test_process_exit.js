@@ -91,10 +91,10 @@ function fork() {
 					});
 				}
 			})
-			.on('beforeDestroy', function(noWrite) {
+			.on('beforeDestroy', function(noWriteExit) {
 				debug('before destroy: %d', index);
 				// assert(this.isWriting());
-				noWrite();
+				noWriteExit();
 			});
 	});
 }
@@ -112,7 +112,7 @@ if (process.env.CLUSTER_APP_FORK_MARK) {
 	// 1个进程写1个文件 10000条数据
 	master('base3', 10000);
 	// 1个进程写20个文件 1条数据
-	master('base4', 1, 20);
+	master('mulitfile1', 1, 20);
 	// 1个进程写20个文件 10000条数据
-	master('base5', 10000, 20);
+	master('mulitfile2', 10000, 20);
 }
