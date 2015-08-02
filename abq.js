@@ -36,7 +36,8 @@ function ADQ(opts) {
 
 	// 声明一下会用到的成员变量
 	this.fd = this.opts.fd;
-	this._writing = this._destroyed = false;
+	this.writing = null;
+	this._destroyed = false;
 	this._genfd = new GenFd();
 
 	events.EventEmitter.call(this);
@@ -134,14 +135,16 @@ extend(ADQ.prototype, {
 			var isWriteExtLog = true;
 			this.emit('beforeDestroy', function() {isWriteExtLog = false});
 
-			if (this._writing) {
-				this._writing = false;
+			if (this.writing) {
+				var writingQuery = [this.writing];
+				this.writing = null;
 
 				if (isWriteExtLog) {
-					this.writeQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
-					this.writeQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
-
+					writingQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
+					writingQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
 				}
+
+				this.writeQuery.unshift(writingQuery);
 			}
 
 			// 直接同步写
@@ -158,17 +161,17 @@ extend(ADQ.prototype, {
 		this.emit('destroy');
 	},
 	isWriting: function() {
-		return this._writing;
+		return !!this.writing;
 	},
 
 	_doFlush: function(isSync) {
-		if (this._writing || !this.fd || !this.writeQuery.length) return;
-		this._writing = true;
+		if (this.writing || !this.fd || !this.writeQuery.length) return;
+		this.writing = Buffer.concat(this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]);
+		this.writeQuery = [];
 
 		// 一次性全部数据
-		this[isSync ? '_flushSync' : '_flush'](Buffer.concat(this.writeQuery.length > 1 ? concat.apply([], this.writeQuery) : this.writeQuery[0]), 0, 0);
+		this[isSync ? '_flushSync' : '_flush'](this.writing, 0, 0);
 		this.emit('flushStart');
-		this.writeQuery = [];
 	},
 	_flush: function(buffer, offset, retry) {
 		var self = this;
@@ -203,7 +206,7 @@ extend(ADQ.prototype, {
 
 		// 清理写队列
 		this.writeQuery.shift();
-		this._writing = false;
+		this.writing = null;
 
 		if (this.writeQuery.length) {
 			this._doFlush(isSync);
