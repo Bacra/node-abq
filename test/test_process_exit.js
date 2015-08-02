@@ -53,7 +53,7 @@ function master(type, lognum, logfiles) {
 		whileLogfile(type, logfiles, function(logfile, index) {
 			it('assertlogfile-'+type+'-'+index, function() {
 				assert(fs.existsSync(logfile), 'file not exists');
-				var cont = fs.readFileSync(logfile, {encoding: 'utf8'});
+				var cont = fs.readFileSync(logfile).toString();
 				assert.ok(!!cont, 'file has no content');
 				assert.ok(cont.split('\n').length >= lognum+1);
 			});

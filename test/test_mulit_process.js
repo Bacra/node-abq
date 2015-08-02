@@ -80,7 +80,7 @@ function master() {
 			// var gTime = 0;
 			assert(fs.existsSync(logfile));
 
-			fs.readFileSync(logfile, {encoding: 'utf8'}).split('\n')
+			fs.readFileSync(logfile).toString().split('\n')
 				.forEach(function(line) {
 					if (!line) return;
 					var arr = line.split(',');
