@@ -55,7 +55,7 @@ function master(type, lognum, logfiles) {
 				assert(fs.existsSync(logfile), 'file not exists');
 				var cont = fs.readFileSync(logfile, {encoding: 'utf8'});
 				assert.ok(!!cont, 'file has no content');
-				assert.equal(cont, new Array(lognum+1).join(type+'\n'));
+				assert.ok(cont.split('\n').length >= lognum+1);
 			});
 		});
 	});
@@ -71,8 +71,8 @@ function fork() {
 	whileLogfile(type, logfiles, function(logfile, index) {
 		debug('gen file: %s', logfile);
 		var log = require('../')({file: logfile, flag: 'w+', maxLength: 0, writeInterval: 100, writeLength: 0});
-		var lnum = lognum;
-		while(lnum--) log(type+'\n');
+		var contentIndex = 0;
+		while(contentIndex < lognum) log(type+':'+(++contentIndex)+'\n');
 
 		var flushStarted = false;
 		log.instance.on('flushStart', function() {
