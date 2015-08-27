@@ -52,7 +52,7 @@ extend(ADQ.prototype, {
 
 		if (this.opts.writeInterval) {
 			// 定期日志写入文件
-			setInterval(this.write.bind(this), this.opts.writeInterval);
+			this._writeInterval = setInterval(this.write.bind(this), this.opts.writeInterval);
 		}
 
 		bindProcess();
@@ -158,6 +158,7 @@ extend(ADQ.prototype, {
 		}
 
 		this.removeAllListeners();
+		if (this._writeInterval) clearInterval(this._writeInterval);
 		this.emit('destroy');
 	},
 	isWriting: function() {
