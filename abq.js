@@ -37,7 +37,7 @@ function ADQ(opts) {
 	// 声明一下会用到的成员变量
 	this.fd = this.opts.fd;
 	this.writing = null;
-	this._destroyed = false;
+	this.destroyed = false;
 	this._genfd = new GenFd();
 
 	events.EventEmitter.call(this);
@@ -62,7 +62,7 @@ extend(ADQ.prototype, {
 	 * @param  {String} msg
 	 */
 	handler: function(msg) {
-		if (this._destroyed) return debug('no msg: has destroyed');
+		if (this.destroyed) return debug('no msg: has destroyed');
 
 		var self		= this;
 		var waitQuery	= self.waitQuery;
@@ -126,8 +126,8 @@ extend(ADQ.prototype, {
 		this.init_();
 	},
 	destroy: function() {
-		if (this._destroyed) return debug('destroy again %s', new Error('destroy again').stack);
-		this._destroyed = true;
+		if (this.destroyed) return debug('destroy again %s', new Error('destroy again').stack);
+		this.destroyed = true;
 
 		if (this.fd) {
 			// 将所有数据移动到write 队列
