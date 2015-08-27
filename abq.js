@@ -205,7 +205,6 @@ extend(ADQ.prototype, {
 		}
 
 		// 清理写队列
-		this.writeQuery.shift();
 		this.writing = null;
 
 		if (this.writeQuery.length) {
