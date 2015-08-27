@@ -99,8 +99,10 @@ extend(ADQ.prototype, {
 		this._doFlush(true);
 	},
 	toWriteQuery: function() {
-		this.writeQuery.push(this.waitQuery);
-		this.waitQuery = [];
+		if (this.waitQuery.length) {
+			this.writeQuery.push(this.waitQuery);
+			this.waitQuery = [];
+		}
 	},
 	genfd: function(file, noAutoBind) {
 		var self = this;
