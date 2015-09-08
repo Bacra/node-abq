@@ -18,6 +18,7 @@ exports.defaults = {
 	fd				: null,
 	flag			: 'a',
 	mode			: parseInt('0644', 8),
+	ignoreFdError	: true,
 	// 超过写的队列就准备写入文件
 	writeLength		: 100,
 	// fd还没创建 日志过满的时候  0 为不限制
@@ -116,7 +117,11 @@ extend(ADQ.prototype, {
 		}
 
 		this._genfd.generate(file, self.opts.flag, this.opts.mode, function(err, fd) {
-			if (!err && noAutoBind !== true) self.bindfd(fd); 
+			// 可以忽略mode 错误 只要有fd，就可以去绑定
+			if (fd && (!err || self.opts.ignoreFdError) && noAutoBind !== true) {
+				self.bindfd(fd);
+				self._genfd.fd = fd;
+			}
 			self.emit('open', err, fd, noAutoBind, file);
 		});
 	},
@@ -262,6 +267,8 @@ GenFd.prototype = {
 		], function(err) {
 			if (!err) {
 				self.fd = thisFd;
+			} else {
+				debug('generate fd err:%o', err);
 			}
 			self._fding = false;
 			callback(err, thisFd);

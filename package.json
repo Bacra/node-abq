@@ -1,6 +1,6 @@
 {
   "name": "abq",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Append data to a file in query.",
   "main": "abq.js",
   "repository": {
