@@ -55,14 +55,12 @@ extend(ADQ.prototype, {
 			// 定期日志写入文件
 			this._writeInterval = setInterval(this.write.bind(this), this.opts.writeInterval);
 		}
-
-		bindProcess();
 	},
 	/**
 	 * 写数据的入口
 	 * @param  {String} msg
 	 */
-	handler: function(msg) {
+	handle: function(msg) {
 		if (this.destroyed) return debug('no msg: has destroyed');
 
 		var self		= this;
@@ -147,8 +145,8 @@ extend(ADQ.prototype, {
 				this.writing = null;
 
 				if (isWriteExtLog) {
-					writingQuery.unshift([new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n')]);
-					writingQuery.push([new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n')]);
+					writingQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
+					writingQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
 				}
 
 				this.writeQuery.unshift(writingQuery);
@@ -179,7 +177,7 @@ extend(ADQ.prototype, {
 
 		// 一次性全部数据
 		this[isSync ? '_flushSync' : '_flush'](this.writing, 0, 0);
-		this.emit('flushStart');
+		this.emit('flush');
 	},
 	_flush: function(buffer, offset, retry) {
 		var self = this;
@@ -281,8 +279,8 @@ GenFd.prototype = {
 var abqs = [];
 function main(opts) {
 	var abq = new ADQ(opts);
-	var handler = abq.handler.bind(abq);
-	handler.instance = abq;
+	var handle = abq.handle.bind(abq);
+	handle.instance = abq;
 	abqs.push(abq);
 	debug('new abq %o, query len:%d', opts, abqs.length);
 
@@ -296,7 +294,9 @@ function main(opts) {
 		debug('remove abqs %d, left len:%d', index, abqs.length);
 	});
 
-	return handler;
+	bindProcess();
+
+	return handle;
 }
 
 function bindProcess() {

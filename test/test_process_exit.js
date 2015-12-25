@@ -1,27 +1,12 @@
-var cDebug = require('debug');
-var debug = cDebug('abq:test');
-// cDebug.enable('abq');
-// cDebug.enable('abq:test');
-
+var debug = require('debug')('abq:test');
 var assert = require('assert');
 
-function getlogfile(type) {
-	return __dirname+'/tmp/proc_exit_'+type+'.log';
-}
+var logfile = __dirname+'/tmp/proc_exit.log';
 
-function whileLogfile(type, num, callback) {
-	while(num--) {
-		var logfile = getlogfile(type+'-'+num);
-		callback(logfile, num);
-	}
-}
-
-function master(type, lognum, logfiles) {
+function master() {
 	var fs = require('fs');
-	lognum || (lognum = 1);
-	logfiles || (logfiles = 1);
 
-	describe('process_exit-'+type, function() {
+	describe('process_exit', function() {
 
 		before(function(done) {
 			this.timeout(60*1000);
@@ -35,13 +20,7 @@ function master(type, lognum, logfiles) {
 			}
 
 			env.CLUSTER_APP_FORK_MARK	= 1;
-			env.CLUSTER_APP_LOGTYPE		= type;
-			env.CLUSTER_APP_LOGNUM		= lognum;
-			env.CLUSTER_APP_LOGFILES	= logfiles;
-
-			whileLogfile(type, logfiles, function(logfile) {
-				if (fs.existsSync(logfile)) fs.unlinkSync(logfile);
-			});
+			if (fs.existsSync(logfile)) fs.unlinkSync(logfile);
 
 			fork(__filename, [], {env: env})
 				.once('exit', function() {
@@ -50,52 +29,39 @@ function master(type, lognum, logfiles) {
 				});
 		});
 
-		whileLogfile(type, logfiles, function(logfile, index) {
-			it('assertlogfile-'+type+'-'+index, function() {
-				assert(fs.existsSync(logfile), 'file not exists');
-				var cont = fs.readFileSync(logfile).toString();
-				assert.ok(!!cont, 'file has no content');
-				assert.ok(cont.split('\n').length >= lognum+1);
-			});
+		it('assertlogfile', function() {
+			assert(fs.existsSync(logfile), 'file not exists');
+			var cont = fs.readFileSync(logfile).toString();
+			assert.ok(!!cont, 'file has no content');
+			assert.equal(cont, 'before exit log\nbefore exit log\nuncaughtException log\n');
 		});
 	});
 }
 
 
 function fork() {
-	var type = process.env.CLUSTER_APP_LOGTYPE;
-	var lognum = Number(process.env.CLUSTER_APP_LOGNUM);
-	var logfiles = Number(process.env.CLUSTER_APP_LOGFILES);
 
-	var fnum = logfiles;
-	whileLogfile(type, logfiles, function(logfile, index) {
-		debug('gen file: %s', logfile);
-		var log = require('../')({file: logfile, flag: 'w+', maxLength: 0, writeInterval: 100, writeLength: 0});
-		var contentIndex = 0;
-		while(contentIndex < lognum) log(type+':'+(++contentIndex)+'\n');
+	var log = require('../')({file: logfile, flag: 'w+'});
 
-		var flushStarted = false;
-		log.instance.on('flushStart', function() {
-				var abq = this;
-				if (flushStarted) return;
-				flushStarted = true;
+	var flushed = false;
+	log('before exit log\n');
+	log.instance.on('flush', function() {
+			var abq = this;
+			if (flushed) return;
+			flushed = true;
 
-				debug('flushStart: %d', index);
-				if (--fnum <= 0) {
-					process.nextTick(function() {
-						debug('before exit');
+			throw -1;
+		})
+		.on('beforeDestroy', function(noWriteExit) {
+			// assert(this.isWriting());
+			noWriteExit();
+		});
 
-						assert(abq.isWriting());
-						process.exit();
-						assert(!abq.isWriting());
-					});
-				}
-			})
-			.on('beforeDestroy', function(noWriteExit) {
-				debug('before destroy: %d', index);
-				// assert(this.isWriting());
-				noWriteExit();
-			});
+	// important
+	process.on('uncaughtException', function()
+	{
+		log('uncaughtException log\n');
+		process.exit();
 	});
 }
 
@@ -105,14 +71,5 @@ function fork() {
 if (process.env.CLUSTER_APP_FORK_MARK) {
 	fork();
 } else {
-	// 1个进程写1个文件 1条数据
-	master('base1', 1);
-	// 1个进程写1个文件 10条数据
-	master('base2', 10);
-	// 1个进程写1个文件 10000条数据
-	master('base3', 10000);
-	// 1个进程写20个文件 1条数据
-	master('mulitfile1', 1, 20);
-	// 1个进程写20个文件 10000条数据
-	master('mulitfile2', 10000, 20);
+	master();
 }
