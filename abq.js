@@ -97,6 +97,30 @@ extend(ADQ.prototype, {
 	flushSync: function() {
 		this._doFlush(true);
 	},
+	flushAllSync: function() {
+		if (this.fd) {
+			// 将所有数据移动到write 队列
+			this.toWriteQuery();
+			var isWriteExtLog = true;
+			this.emit('beforeDestroy', function() {isWriteExtLog = false});
+
+			if (this.writing) {
+				var writingQuery = [this.writing];
+				this.writing = null;
+
+				if (isWriteExtLog) {
+					writingQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
+					writingQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
+				}
+
+				this.writeQuery.unshift(writingQuery);
+			}
+
+			// 直接同步写
+			this.flushSync();
+			this.emit('flushAllSync');
+		}
+	},
 	toWriteQuery: function() {
 		if (this.waitQuery.length) {
 			this.writeQuery.push(this.waitQuery);
@@ -135,25 +159,7 @@ extend(ADQ.prototype, {
 		this.destroyed = true;
 
 		if (this.fd) {
-			// 将所有数据移动到write 队列
-			this.toWriteQuery();
-			var isWriteExtLog = true;
-			this.emit('beforeDestroy', function() {isWriteExtLog = false});
-
-			if (this.writing) {
-				var writingQuery = [this.writing];
-				this.writing = null;
-
-				if (isWriteExtLog) {
-					writingQuery.unshift(new Buffer('\n\n↓↓↓↓↓↓↓↓↓↓ [abq] process exit write, maybe repeat!!!~ ↓↓↓↓↓↓↓↓↓↓\n\n'));
-					writingQuery.push(new Buffer('\n\n↑↑↑↑↑↑↑↑↑↑ [abq] process exit write, maybe repeat!!!~ ↑↑↑↑↑↑↑↑↑↑\n\n'));
-				}
-
-				this.writeQuery.unshift(writingQuery);
-			}
-
-			// 直接同步写
-			this.flushSync();
+			this.flushAllSync();
 			try {
 				fs.closeSync(this.fd);
 			} catch(e) {
@@ -166,6 +172,7 @@ extend(ADQ.prototype, {
 		if (this._writeInterval) clearInterval(this._writeInterval);
 		this.emit('destroy');
 	},
+
 	isWriting: function() {
 		return !!this.writing;
 	},
@@ -298,6 +305,8 @@ function main(opts) {
 
 	return handle;
 }
+
+
 
 function bindProcess() {
 	if (bindProcess._inited) return;
